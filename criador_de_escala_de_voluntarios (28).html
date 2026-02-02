@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<title>Gerador de Escalas – Base Estável</title>
+<style>
+body { font-family: Arial, sans-serif; padding:20px }
+.box { border:1px solid #ccc; padding:10px; margin-bottom:10px }
+.subgrupo { border:1px dashed #999; padding:8px; margin-top:8px }
+input, textarea { width:100%; margin-bottom:6px }
+button { margin:4px }
+</style>
+</head>
+<body>
+
+<h2>Gerador de Escalas (versão estável)</h2>
+
+<div class="box">
+<h3>Ministério</h3>
+<input id="nomeMinisterio" placeholder="Ex: Multimídia, Louvor, Kids" />
+</div>
+
+<div class="box">
+<h3>Subgrupos</h3>
+<div id="subgrupos"></div>
+<button type="button" onclick="adicionarSubgrupo()">Adicionar subgrupo</button>
+</div>
+
+<div class="box">
+<h3>Condições (opcional)</h3>
+<strong>Somente Manhã</strong>
+<textarea id="somenteManha"></textarea>
+<strong>Somente Noite</strong>
+<textarea id="somenteNoite"></textarea>
+</div>
+
+<div class="box">
+<h3>Bloqueio geral (opcional)</h3>
+<textarea id="bloqueio"></textarea>
+</div>
+
+<div class="box">
+<h3>Período</h3>
+<input type="month" id="mesInicio" />
+<input type="month" id="mesFim" />
+</div>
+
+<button type="button" onclick="gerarEscala()">Gerar escala</button>
+
+<h3>Resultado (editável)</h3>
+<textarea id="resultado" rows="25"></textarea>
+
+<script>
+// === SUBGRUPO (INLINE – IMPOSSÍVEL FALHAR) ===
+function adicionarSubgrupo() {
+  const container = document.getElementById('subgrupos');
+  const div = document.createElement('div');
+  div.className = 'subgrupo';
+  div.innerHTML = `
+    <input class="nomeSub" placeholder="Nome do subgrupo" />
+    <textarea class="voluntarios" placeholder="Um voluntário por linha"></textarea>
+  `;
+  container.appendChild(div);
+}
+
+// === DOMINGOS ===
+function gerarDomingos(inicio, fim) {
+  const datas = [];
+  for (let d = new Date(inicio); d <= fim; d.setDate(d.getDate()+1)) {
+    if (d.getDay() === 0) datas.push(new Date(d));
+  }
+  return datas;
+}
+
+// === GERAR ESCALA ===
+function gerarEscala() {
+  const mi = mesInicio.value;
+  const mf = mesFim.value;
+  if (!mi || !mf) return alert('Selecione os meses');
+
+  const inicio = new Date(mi+'-01');
+  const fim = new Date(mf+'-01');
+  fim.setMonth(fim.getMonth()+1);
+
+  const bloqueados = new Set(bloqueio.value.split('\n').map(n=>n.trim().toLowerCase()).filter(n=>n));
+  const manhaOnly = new Set(somenteManha.value.split('\n').map(n=>n.trim().toLowerCase()).filter(n=>n));
+  const noiteOnly = new Set(somenteNoite.value.split('\n').map(n=>n.trim().toLowerCase()).filter(n=>n));
+
+  let texto = '';
+
+  gerarDomingos(inicio,fim).forEach(data => {
+    texto += data.toLocaleDateString('pt-BR') + '\n';
+
+    ['Manhã','Noite'].forEach(turno => {
+      texto += `Culto ${turno}:\n`;
+      const usados = new Set();
+
+      document.querySelectorAll('.subgrupo').forEach(sg => {
+        const nomeSub = sg.querySelector('.nomeSub').value;
+        let lista = sg.querySelector('.voluntarios').value
+          .split('\n').map(n=>n.trim()).filter(n=>n);
+
+        lista = lista.filter(n => {
+          const l = n.toLowerCase();
+          if (bloqueados.has(l)) return false;
+          if (usados.has(l)) return false;
+          if (turno==='Manhã' && noiteOnly.has(l)) return false;
+          if (turno==='Noite' && manhaOnly.has(l)) return false;
+          return true;
+        });
+
+        if (!nomeSub || lista.length===0) return;
+
+        const escolhido = lista[Math.floor(Math.random()*lista.length)];
+        usados.add(escolhido.toLowerCase());
+        texto += `${nomeSub}: ${escolhido}\n`;
+      });
+
+      texto += '\n';
+    });
+  });
+
+  resultado.value = texto;
+}
+</script>
+
+</body>
+</html>
